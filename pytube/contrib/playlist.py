@@ -4,6 +4,7 @@ import logging
 from collections.abc import Sequence
 from datetime import date, datetime
 from typing import Dict, Iterable, List, Optional, Tuple, Union
+from re import findall
 
 from pytube import extract, request, YouTube
 from pytube.helpers import cache, DeferredGeneratorList, install_proxy, uniqueify
@@ -327,8 +328,11 @@ class Playlist(Sequence):
         :return: Date of last playlist update where possible, else the string provided
         :rtype: datetime.date
         """
-        last_updated_text = self.sidebar_info[0]['playlistSidebarPrimaryInfoRenderer'][
-            'stats'][2]['runs'][1]['text']
+        last_updated_text = ""
+        try:
+            last_updated_text = self.sidebar_info[0]['playlistSidebarPrimaryInfoRenderer']['stats'][2]['runs'][1]['text']
+        except IndexError:            
+            last_updated_text = self.sidebar_info[0]['playlistSidebarPrimaryInfoRenderer']['stats'][2]['runs'][0]['text']
         try:
             date_components = last_updated_text.split()
             month = date_components[0]
@@ -338,6 +342,8 @@ class Playlist(Sequence):
                 f"{month} {day:0>2} {year}", "%b %d %Y"
             ).date()
         except (IndexError, KeyError):
+            if last_updated_text == "Updated today":
+                return date.today()
             return last_updated_text
 
     @property
@@ -353,8 +359,11 @@ class Playlist(Sequence):
 
     @property
     def description(self) -> str:
-        return self.sidebar_info[0]['playlistSidebarPrimaryInfoRenderer'][
-            'description']['simpleText']
+        try:
+            description = self.sidebar_info[0]['playlistSidebarPrimaryInfoRenderer']['description']['simpleText']
+        except KeyError:
+            description = None
+        return description
 
     @property
     def length(self):
@@ -365,7 +374,7 @@ class Playlist(Sequence):
         """
         count_text = self.sidebar_info[0]['playlistSidebarPrimaryInfoRenderer'][
             'stats'][0]['runs'][0]['text']
-        count_text = count_text.replace(',','')
+        count_text = count_text.replace(',','').replace('video','')
         return int(count_text)
 
     @property
@@ -382,7 +391,12 @@ class Playlist(Sequence):
         count_text = views_text.split()[0]
         # "1234567"
         count_text = count_text.replace(',', '')
-        return int(count_text)
+        count = 0
+        try:
+            count = int(count_text)
+        except ValueError:
+            count = 0
+        return count
 
     @property
     def owner(self):
@@ -417,3 +431,31 @@ class Playlist(Sequence):
     @staticmethod
     def _video_url(watch_path: str):
         return f"https://www.youtube.com{watch_path}"
+       
+    @property
+    def urls_present_in_the_playlist_description(self) -> Union[List[str], int]:
+        """Get the Urls present in the playlist description of the YouTube channel.
+
+        :rtype: Union[List[str], int]
+        """        
+        _urls = []
+        if self.description:           
+            pattern = "https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)"         
+            _urls = list(set(findall(pattern, self.description)))    
+        if not len(_urls):
+            _urls =0     
+        return _urls
+           
+    @property
+    def mails_present_in_the_playlist_description(self) -> Union[List[str], int]:
+        """Get the Mails present in the playlist description of the YouTube channel.
+
+        :rtype: Union[List[str], int]
+        """           
+        _mails = []
+        if self.description:      
+            pattern = r"\S+@\S+\.\S+"             
+            _mails = [mail for mail in list(set(findall(pattern, self.description))) if not mail.startswith("http")]   
+        if not len(_mails):
+            _mails = 0           
+        return _mails

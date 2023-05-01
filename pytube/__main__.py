@@ -9,6 +9,8 @@ smaller peripheral modules and functions.
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
+from re import findall
+
 import pytube
 import pytube.exceptions as exceptions
 from pytube import extract, request
@@ -343,11 +345,14 @@ class YouTube:
             # Check_availability will raise the correct exception in most cases
             #  if it doesn't, ask for a report.
             self.check_availability()
-            raise exceptions.PytubeError(
-                (
-                    f'Exception while accessing title of {self.watch_url}. '
-                    'Please file a bug report at https://github.com/pytube/pytube'
-                )
+            try:
+                self._title = self.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents'][0]['videoPrimaryInfoRenderer']['title']['runs'][0]['text']
+            except:
+                raise exceptions.PytubeError(
+                    (
+                        f'Exception while accessing title of {self.watch_url}. '
+                        'Please file a bug report at https://github.com/pytube/pytube'
+                    )
             )
 
         return self._title
@@ -363,7 +368,34 @@ class YouTube:
 
         :rtype: str
         """
-        return self.vid_info.get("videoDetails", {}).get("shortDescription")
+        description = ""
+        try:
+            description = self.vid_info.get("videoDetails", {}).get("shortDescription")
+            if not description:
+                try:
+                    description = self.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents'][1]['videoSecondaryInfoRenderer']['attributedDescription']['content']
+                except:
+                    raise exceptions.PytubeError(
+                        (
+                            f'Exception while accessing title of {self.watch_url}. '
+                            'Please file a bug report at https://github.com/pytube/pytube'
+                        )
+                )
+        except:
+            # Check_availability will raise the correct exception in most cases
+            #  if it doesn't, ask for a report.
+            self.check_availability()
+            try:
+                description = self.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents'][1]['videoSecondaryInfoRenderer']['attributedDescription']['content']
+            except:
+                raise exceptions.PytubeError(
+                    (
+                        f'Exception while accessing title of {self.watch_url}. '
+                        'Please file a bug report at https://github.com/pytube/pytube'
+                    )
+            )
+                
+        return description
 
     @property
     def rating(self) -> float:
@@ -380,7 +412,30 @@ class YouTube:
 
         :rtype: int
         """
-        return int(self.vid_info.get('videoDetails', {}).get('lengthSeconds'))
+        try:
+            length = int(self.vid_info.get('videoDetails', {}).get('lengthSeconds'))
+        except Exception:
+            # Check_availability will raise the correct exception in most cases
+            #  if it doesn't, ask for a report.
+            self.check_availability()
+            try:
+                #FIXME: properly get the length in seconds
+                length = 0
+                print(f"\nIt was not possible get the length in seconds of the video {self.watch_url} - {self.title}")
+                # length = self.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents'][0]['videoPrimaryInfoRenderer']['viewCount']['videoViewCountRenderer']["viewCount"]['simpleText']           
+                # length = views.replace("views", "").replace(" view", "").replace(",", "").replace("K", "e3").replace("M", "e6").replace("No", "0")                 
+                # length = int(length)  
+                
+                # print(length)
+            except:
+                raise exceptions.PytubeError(
+                    (
+                        f'Exception while accessing title of {self.watch_url}. '
+                        'Please file a bug report at https://github.com/pytube/pytube'
+                    )
+            )
+
+        return length
 
     @property
     def views(self) -> int:
@@ -388,7 +443,29 @@ class YouTube:
 
         :rtype: int
         """
-        return int(self.vid_info.get("videoDetails", {}).get("viewCount"))
+   
+        views = 0
+
+        try:
+            views = int(self.vid_info.get("videoDetails", {}).get("viewCount"))
+        except Exception:
+            # Check_availability will raise the correct exception in most cases
+            #  if it doesn't, ask for a report.
+            self.check_availability()
+            try:
+                views = self.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents'][0]['videoPrimaryInfoRenderer']['viewCount']['videoViewCountRenderer']["viewCount"]['simpleText']           
+                views = views.replace("views", "").replace(" view", "").replace(",", "").replace("K", "e3").replace("M", "e6").replace("No", "0")                 
+                views = int(views)  
+                
+            except:
+                raise exceptions.PytubeError(
+                    (
+                        f'Exception while accessing title of {self.watch_url}. '
+                        'Please file a bug report at https://github.com/pytube/pytube'
+                    )
+            )
+
+        return views
 
     @property
     def author(self) -> str:
@@ -412,8 +489,9 @@ class YouTube:
         """Get the video keywords.
 
         :rtype: List[str]
-        """
-        return self.vid_info.get('videoDetails', {}).get('keywords', [])
+        """        
+        keywords = str(self.vid_info.get('videoDetails', {}).get('keywords', [])).replace("'", "").replace("[", "").replace("]", "").split(", ") 
+        return [keyword for keyword in keywords if "" != keyword]
 
     @property
     def channel_id(self) -> str:
@@ -477,3 +555,122 @@ class YouTube:
         
         """
         return YouTube(f"https://www.youtube.com/watch?v={video_id}")
+    
+    @property
+    def likes(self) -> int:
+        """Get the number of the times the video has been liked.
+
+        :rtype: int
+        """        
+        _likes = 0
+        try:
+            _likes = self.initial_data["contents"]["twoColumnWatchNextResults"]["results"]["results"]["contents"][0]["videoPrimaryInfoRenderer"]["videoActions"]["menuRenderer"]["topLevelButtons"][0]["segmentedLikeDislikeButtonRenderer"]["likeButton"]["toggleButtonRenderer"]["defaultText"]
+            try:
+                _likes = _likes["accessibility"]["accessibilityData"]["label"]
+                _likes = _likes.replace("likes", "").replace(" like", "").replace(",", "").replace("K", "e3").replace("M", "e6").replace("No", "0")  
+                _likes = int(_likes)  
+            except KeyError:
+                _likes = 0   
+        except Exception as e:
+            # with open(f"error by 'like' - initial data for {self.video_id}.json", 'w', encoding='utf-8') as f:
+            #     from json import dump
+            #     dump(self.initial_data, f, ensure_ascii=False, indent=4)
+            raise exceptions.PytubeError(
+                (
+                    f'Exception while accessing likes of {self.watch_url}. '
+                    f'Exception caused by: {str(e)}. '
+                    'Please file a bug report at https://github.com/pytube/pytube. '
+                    f'Last _likes value: {_likes}'
+                )
+            )
+   
+        return _likes
+    
+    @property
+    def comments_count(self) -> int:
+        """Get the number of the times the video has been comment.
+
+        :rtype: int
+        """       
+        _comments_count = 0
+        try: 
+            try:
+                try:
+                    _comments_count = self.initial_data["contents"]["twoColumnWatchNextResults"]["results"]["results"]["contents"][2]["itemSectionRenderer"]["contents"][0]["commentsEntryPointHeaderRenderer"]   
+                except KeyError: # comments off
+                    _comments_count = 0         
+            except IndexError:                
+                _comments_count = 0
+            try:
+                _comments_count = _comments_count["commentCount"]["simpleText"]
+                _comments_count = _comments_count.replace("K", "e3").replace("M", "e6").replace("No", "0")  
+                _comments_count = int(float(_comments_count))   
+            except KeyError:                
+                _comments_count = 0
+            except TypeError:                
+                _comments_count = 0             
+             
+        except Exception as e:
+            
+            raise exceptions.PytubeError(
+                (
+                    f'Exception while accessing "comments_count" of {self.watch_url}. '
+                    f'Exception caused by: {e} '
+                    'Please file a bug report at https://github.com/pytube/pytube. '
+                    f'Last comments_count value: {_comments_count}'
+                )
+            )
+   
+        return _comments_count
+        
+    @property        
+    def urls_present_in_the_video_description(self) -> List[str]:
+        """Get the Urls present in the video description.
+
+        :rtype: List[str]
+        """                
+        _urls = []
+        if self.description:           
+            pattern = "https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)"         
+            _urls = list(set(findall(pattern, self.description)))    
+        return _urls 
+           
+    @property
+    def mails_present_in_the_video_description(self) -> List[str]:
+        """Get the Mails present in the video description.
+
+        :rtype: List[str]
+        """                 
+        _mails = []
+        if self.description:      
+            pattern = r"\S+@\S+\.\S+"             
+            _mails = [mail for mail in list(set(findall(pattern, self.description))) if not mail.startswith("http")]         
+        return _mails
+    
+    @property
+    def category(self) -> str:
+        """Get the video category.
+        :rtype: str
+        """
+        try:
+            _category = str(self.watch_html)
+            _category = _category.split('category')
+            if len(_category) == 3:
+                _category = _category[-1].split(",")[0].split(":")[1].replace('"', "")
+            elif len(_category) == 4:
+                _category = _category[-2].split(",")[0].split(":")[1].replace('"', "")
+            
+        except Exception as e:
+        
+            raise exceptions.PytubeError(
+                (
+                    f'Exception while accessing category of video with id {self.video_id}. '
+                    f'Exception caused by: {str(e)}. '
+                    'Please file a bug report at https://github.com/pytube/pytube. '
+                    f'Last category value: {_category}'
+                )
+            )
+        _category = bytes(_category, "utf-8").decode("unicode_escape") # python3 
+        return _category
+    
+    
