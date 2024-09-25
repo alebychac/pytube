@@ -168,12 +168,19 @@ def channel_name(url: str) -> str:
     :returns:
         YouTube channel name.
     """
+    # patterns = [
+    #     r"(?:\/(c)\/([%\d\w_\-]+)(\/.*)?)",
+    #     r"(?:\/(channel)\/([%\w\d_\-]+)(\/.*)?)",
+    #     r"(?:\/(u)\/([%\d\w_\-]+)(\/.*)?)",
+    #     r"(?:\/(user)\/([%\w\d_\-]+)(\/.*)?)",
+    #     r"(?:(@[%\w\d_-]+)(.*)?)"
+    # ]
     patterns = [
         r"(?:\/(c)\/([%\d\w_\-]+)(\/.*)?)",
         r"(?:\/(channel)\/([%\w\d_\-]+)(\/.*)?)",
         r"(?:\/(u)\/([%\d\w_\-]+)(\/.*)?)",
         r"(?:\/(user)\/([%\w\d_\-]+)(\/.*)?)",
-        r"(?:(@[%\w\d_-]+)(.*)?)"
+        r"(?:(@[%\w\d_\-.]+)(.*)?)"
     ]
     for pattern in patterns:
         regex = re.compile(pattern)
@@ -510,6 +517,7 @@ def initial_data(watch_html: str) -> str:
         r"window\[['\"]ytInitialData['\"]]\s*=\s*",
         r"ytInitialData\s*=\s*"
     ]
+    
     for pattern in patterns:
         try:
             return parse_for_object(watch_html, pattern)
