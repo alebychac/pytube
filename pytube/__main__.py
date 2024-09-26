@@ -374,6 +374,8 @@ class YouTube:
             if not description:
                 try:
                     description = self.initial_data['contents']['twoColumnWatchNextResults']['results']['results']['contents'][1]['videoSecondaryInfoRenderer']['attributedDescription']['content']
+                except KeyError:
+                    description = ""
                 except:
                     raise exceptions.PytubeError(
                         (
@@ -390,7 +392,7 @@ class YouTube:
             except:
                 raise exceptions.PytubeError(
                     (
-                        f'Exception while accessing title of {self.watch_url}. '
+                        f'Exception while accessing description of {self.watch_url}. '
                         'Please file a bug report at https://github.com/pytube/pytube'
                     )
             )
@@ -572,9 +574,6 @@ class YouTube:
             except KeyError:
                 _likes = 0   
         except Exception as e:
-            # with open(f"error by 'like' - initial data for {self.video_id}.json", 'w', encoding='utf-8') as f:
-            #     from json import dump
-            #     dump(self.initial_data, f, ensure_ascii=False, indent=4)
             raise exceptions.PytubeError(
                 (
                     f'Exception while accessing likes of {self.watch_url}. '
@@ -582,8 +581,7 @@ class YouTube:
                     'Please file a bug report at https://github.com/pytube/pytube. '
                     f'Last _likes value: {_likes}'
                 )
-            )
-   
+            )   
         return _likes
     
     @property
@@ -630,7 +628,7 @@ class YouTube:
         :rtype: List[str]
         """                
         _urls = []
-        if self.description:           
+        if self.description and self.description != "":           
             pattern = "https?:\\/\\/(?:www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b(?:[-a-zA-Z0-9()@:%_\\+.~#?&\\/=]*)"         
             _urls = list(set(findall(pattern, self.description)))    
         return _urls 
@@ -642,7 +640,7 @@ class YouTube:
         :rtype: List[str]
         """                 
         _mails = []
-        if self.description:      
+        if self.description and self.description != "":      
             pattern = r"\S+@\S+\.\S+"             
             _mails = [mail for mail in list(set(findall(pattern, self.description))) if not mail.startswith("http")]         
         return _mails
