@@ -313,11 +313,6 @@ class Channel(Playlist):
             a continuation token, if more videos are available
         """
         initial_data = json.loads(raw_json)
-        from json import dumps
-        with open("shorts_initial_data.json", 'w', encoding='utf-8') as f:
-            # dump(self.info, f, indent=4)                
-            json_data = dumps(initial_data, ensure_ascii=False, indent=4)
-            f.write(json_data)           
             
         # this is the json tree structure, if the json was extracted from
         # html
